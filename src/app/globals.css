@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0f172a; /* Industrial dark blue */
+  --foreground: #f8fafc;
+  --panel-bg: #1e293b;
+  --border-color: #334155;
+  --accent-cyan: #06b6d4;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', Courier, monospace;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* App-like feel */
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* Base custom classes to match the design */
+.engineering-grid {
+  background-size: 20px 20px;
+  background-image: 
+    linear-gradient(to right, rgba(51, 65, 85, 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(51, 65, 85, 0.4) 1px, transparent 1px);
+}
+
+.console-text {
+  font-family: var(--font-mono);
+  color: var(--accent-cyan);
+}
+
+/* Thin, flat AntD overrides */
+.ant-layout {
+  background: var(--background) !important;
+}
+
+.ant-layout-sider {
+  background: var(--panel-bg) !important;
+  border-right: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-color);
+}
+
+.ant-layout-header, .ant-layout-footer {
+  background: var(--panel-bg) !important;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 16px !important;
+}
+
+/* Minimal Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 0; /* Flat, not rounded */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
