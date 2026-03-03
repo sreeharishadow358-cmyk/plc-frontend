@@ -1,74 +1,118 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0f172a; /* Industrial dark blue */
-  --foreground: #f8fafc;
-  --panel-bg: #1e293b;
-  --border-color: #334155;
-  --accent-cyan: #06b6d4;
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', Courier, monospace;
+  /* ── Design tokens from Figma ─────────────────────────────── */
+  --bg-base: #050d1a;
+  --bg-panel: #0f172a;
+  --bg-card: #1e293b;
+  --bg-editor: #162032;
+  --border: #1e3a5f;
+
+  --cyan: #06b6d4;
+  --green: #10b981;
+  --purple: #a855f7;
+  --blue-glow: #0ea5e9;
+
+  --text-primary: #f0f9ff;
+  --text-secondary: #94a3b8;
+  --text-muted: #475569;
+
+  /* ── Font families (vars injected by next/font) ───────────── */
+  --font-brand: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
+  --font-sans: var(--font-inter), 'Inter', ui-sans-serif, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Legacy aliases (kept so existing component vars resolve) */
+  --background: var(--bg-panel);
+  --foreground: var(--text-primary);
+  --panel-bg: var(--bg-card);
+  --border-color: var(--border);
+  --accent-cyan: var(--cyan);
+}
+
+:root[data-theme='light'] {
+  --bg-base: #eef2f6;
+  --bg-panel: #ffffff;
+  --bg-card: #f8fafc;
+  --bg-editor: #f1f5f9;
+  --border: #cbd5e1;
+
+  --cyan: #0284c7;
+  --green: #059669;
+  --purple: #7e22ce;
+  --blue-glow: #0ea5e9;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  margin: 0;
-  padding: 0;
-  overflow: hidden; /* App-like feel */
-  font-family: ui-sans-serif, system-ui, sans-serif;
-  box-sizing: border-box;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-*, *::before, *::after {
-  box-sizing: inherit;
+/* ── Cursor blink (Output Console) ───────────────────────────── */
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
 }
 
-/* Base custom classes to match the design */
-.engineering-grid {
-  background-size: 20px 20px;
-  background-image: 
-    linear-gradient(to right, rgba(51, 65, 85, 0.4) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(51, 65, 85, 0.4) 1px, transparent 1px);
+.cursor-blink {
+  animation: blink 1s step-end infinite;
 }
 
-.console-text {
-  font-family: var(--font-mono);
-  color: var(--accent-cyan);
-}
-
-/* Thin, flat AntD overrides */
-.ant-layout {
-  background: var(--background) !important;
-}
-
-.ant-layout-sider {
-  background: var(--panel-bg) !important;
-  border-right: 1px solid var(--border-color);
-  border-left: 1px solid var(--border-color);
-}
-
-.ant-layout-header, .ant-layout-footer {
-  background: var(--panel-bg) !important;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-  padding: 0 16px !important;
-}
-
-/* Minimal Scrollbar Styling */
+/* ── Thin scrollbar ───────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: var(--bg-panel);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 0; /* Flat, not rounded */
+  background: var(--border);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--text-muted);
+}
+
+/* ── Textarea reset ───────────────────────────────────────────── */
+textarea {
+  font-family: var(--font-mono);
+  caret-color: var(--cyan);
+  outline: none;
+  resize: none;
+}
+
+textarea::placeholder {
+  color: transparent;
+}
+
+/* ── Remove Ant Design's default button focus ring ──────────── */
+button:focus-visible {
+  outline: 1px solid var(--border);
+  outline-offset: 2px;
 }
