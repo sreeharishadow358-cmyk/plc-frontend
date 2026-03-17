@@ -1,7 +1,7 @@
 "use client";
 
 import { usePlcStore } from "../../store/plcStore";
-import type { LadderBlock } from "../../store/plcStore";
+import type { LadderBlock } from "@/types/ladder";
 
 // ── Icons ────────────────────────────────────────────────────────────────────
 

@@ -1,11 +1,8 @@
 import { create } from 'zustand';
+import type { LadderBlock } from '@/types/ladder';
 
-export type LadderBlockType = 'contact' | 'contact_nc' | 'coil';
-
-export interface LadderBlock {
-    type: LadderBlockType;
-    label: string;
-}
+// Re-export for backward compatibility
+export type { LadderBlock };
 
 interface PlcState {
     inputText: string;

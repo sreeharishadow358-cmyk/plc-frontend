@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { LadderBlock } from '../store/plcStore';
+import type { LadderBlock } from '@/types/ladder';
 
 export interface LogicGenerationResult {
     ladder: LadderBlock[];

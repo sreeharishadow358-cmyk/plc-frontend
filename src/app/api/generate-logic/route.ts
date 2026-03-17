@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LadderBlock } from '@/store/plcStore';
+import type { LadderBlock } from '@/types/ladder';
+import { validateApiRequest, errorResponse, successResponse } from '@/lib/apiMiddleware';
 
 // ─────────────────────────────────────────────
 // Types
@@ -61,26 +62,36 @@ EXAMPLE OUTPUT for "Start motor X0, stop X1, emergency stop X2, output Y0":
 }`;
 
 // ─────────────────────────────────────────────
-// POST /api/generate-logic
+// POST /api/generate-logic (PRIVATE API)
 // ─────────────────────────────────────────────
 export async function POST(req: NextRequest) {
     try {
+        // ── SECURITY: Validate request ──────────────────────────
+        const validation = validateApiRequest(req);
+        if (!validation.valid) {
+            return errorResponse(validation.message || 'Invalid request', 429);
+        }
+
+        // ── SECURITY: Verify Groq API key is configured ──────────
+        const apiKey = process.env.GROQ_API_KEY;
+        if (!apiKey || apiKey.trim() === '' || apiKey.includes('your_')) {
+            console.error('❌ GROQ_API_KEY not configured in .env.local');
+            return errorResponse(
+                'API not configured. Please add GROQ_API_KEY to .env.local',
+                500
+            );
+        }
+
+        // ── Parse and validate request body ──────────────────────
         const body = await req.json();
         const { input } = body;
 
         if (!input || typeof input !== 'string' || input.trim().length === 0) {
-            return NextResponse.json(
-                { error: 'Input is required and must be a non-empty string.' },
-                { status: 400 }
-            );
+            return errorResponse('Input is required and must be a non-empty string.', 400);
         }
 
-        const apiKey = process.env.GROQ_API_KEY;
-        if (!apiKey) {
-            return NextResponse.json(
-                { error: 'GROQ_API_KEY is not configured. Add it to .env.local.' },
-                { status: 500 }
-            );
+        if (input.trim().length > 5000) {
+            return errorResponse('Input exceeds maximum length of 5000 characters.', 400);
         }
 
         const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -103,42 +114,36 @@ export async function POST(req: NextRequest) {
         if (!groqRes.ok) {
             const errText = await groqRes.text();
             console.error('Groq API error:', errText);
-            let errMessage = `Groq API returned ${groqRes.status}.`;
+            let errMessage = `Groq API error: ${groqRes.status}`;
             try {
                 const errJson = JSON.parse(errText);
                 if (errJson?.error?.message) errMessage = errJson.error.message;
             } catch { /* keep generic message */ }
-            return NextResponse.json({ error: errMessage }, { status: 502 });
+            return errorResponse(errMessage, 502);
         }
 
         const groqData = await groqRes.json();
         const raw = groqData.choices?.[0]?.message?.content;
 
         if (!raw) {
-            return NextResponse.json(
-                { error: 'Groq returned an empty response.' },
-                { status: 502 }
-            );
+            return errorResponse('AI service returned empty response. Please try again.', 502);
         }
 
         // ── Parse & Validate ─────────────────────────
         let parsed: LogicGenerationResult;
         try {
             parsed = JSON.parse(raw);
-        } catch {
+        } catch (err) {
             console.error('JSON parse failed. Raw response:', raw);
-            return NextResponse.json(
-                { error: 'AI returned malformed JSON. Check server logs.' },
-                { status: 502 }
+            return errorResponse(
+                'AI returned invalid JSON format. Please try again.',
+                502
             );
         }
 
         // Basic shape validation before sending to frontend
         if (!Array.isArray(parsed.ladder) || parsed.ladder.length === 0) {
-            return NextResponse.json(
-                { error: 'AI response is missing valid ladder data.' },
-                { status: 502 }
-            );
+            return errorResponse('AI response is missing valid ladder data.', 502);
         }
 
         const validTypes = new Set(['contact', 'contact_nc', 'coil']);
@@ -147,19 +152,13 @@ export async function POST(req: NextRequest) {
         );
 
         if (!isValidLadder) {
-            return NextResponse.json(
-                { error: 'AI returned invalid ladder block types or missing labels.' },
-                { status: 502 }
-            );
+            return errorResponse('AI returned invalid ladder block types or missing labels.', 502);
         }
 
-        return NextResponse.json(parsed, { status: 200 });
+        return successResponse(parsed);
 
     } catch (error) {
-        console.error('Unexpected error in /api/generate-logic:', error);
-        return NextResponse.json(
-            { error: 'Internal server error.' },
-            { status: 500 }
-        );
+        console.error('❌ Unexpected error in /api/generate-logic:', error);
+        return errorResponse('Internal server error. Please try again later.', 500);
     }
 }
