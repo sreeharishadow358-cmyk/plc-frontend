@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { LadderBlock } from '@/types/ladder';
 import { validateApiRequest, errorResponse, successResponse } from '@/lib/apiMiddleware';
+import { retrieveContext, constructRAGPrompt, isRAGInitialized } from '@/services/ragService';
+import { validateAndFixResponse } from '@/services/responseValidator';
 
 // ─────────────────────────────────────────────
 // Types
@@ -94,6 +96,49 @@ export async function POST(req: NextRequest) {
             return errorResponse('Input exceeds maximum length of 5000 characters.', 400);
         }
 
+        // ──────────────────────────────────────────────────────────
+        // RAG: RETRIEVE CONTEXT FROM KNOWLEDGE BASE
+        // ──────────────────────────────────────────────────────────
+        let retrievedContext = null;
+        let ragStatus = "disabled";
+
+        if (isRAGInitialized()) {
+            try {
+                console.log("🔍 [RAG] Retrieving context for query...");
+                retrievedContext = await retrieveContext(input, 4);
+                
+                if (retrievedContext.chunks.length > 0) {
+                    console.log(`✅ [RAG] Retrieved ${retrievedContext.chunks.length} relevant chunks`);
+                    ragStatus = "active";
+                } else {
+                    console.log("ℹ️ [RAG] No similar chunks found in knowledge base");
+                    ragStatus = "no_results";
+                }
+            } catch (ragError) {
+                console.error("⚠️ [RAG] Context retrieval failed:", ragError);
+                ragStatus = "error";
+                // Continue without RAG - don't fail the entire request
+            }
+        } else {
+            console.log("ℹ️ [RAG] Vector database not initialized - skipping context retrieval");
+            ragStatus = "not_initialized";
+        }
+
+        // ──────────────────────────────────────────────────────────
+        // CONSTRUCT PROMPT WITH RAG CONTEXT
+        // ──────────────────────────────────────────────────────────
+        let finalPrompt = SYSTEM_PROMPT;
+        
+        if (retrievedContext && retrievedContext.combinedContext.length > 0) {
+            finalPrompt = constructRAGPrompt(input, retrievedContext, SYSTEM_PROMPT);
+        } else {
+            // Fallback to user input only
+            finalPrompt += `\n\nUSER REQUEST:\n${input}`;
+        }
+
+        // ──────────────────────────────────────────────────────────
+        // CALL GROQ API WITH RAG-ENHANCED PROMPT
+        // ──────────────────────────────────────────────────────────
         const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -106,7 +151,7 @@ export async function POST(req: NextRequest) {
                 response_format: { type: 'json_object' },
                 messages: [
                     { role: 'system', content: SYSTEM_PROMPT },
-                    { role: 'user', content: input.trim() },
+                    { role: 'user', content: finalPrompt },
                 ],
             }),
         });
@@ -129,7 +174,9 @@ export async function POST(req: NextRequest) {
             return errorResponse('AI service returned empty response. Please try again.', 502);
         }
 
-        // ── Parse & Validate ─────────────────────────
+        // ──────────────────────────────────────────────────────────
+        // PARSE & VALIDATE RESPONSE WITH COMPREHENSIVE VALIDATION
+        // ──────────────────────────────────────────────────────────
         let parsed: LogicGenerationResult;
         try {
             parsed = JSON.parse(raw);
@@ -141,21 +188,35 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Basic shape validation before sending to frontend
-        if (!Array.isArray(parsed.ladder) || parsed.ladder.length === 0) {
-            return errorResponse('AI response is missing valid ladder data.', 502);
+        // Validate response with auto-fix capabilities
+        const validation_result = validateAndFixResponse(parsed, true);
+
+        if (!validation_result.valid) {
+            console.error('❌ Response validation failed:', validation_result.errors);
+            return errorResponse(
+                `Response validation failed: ${validation_result.errors.join(', ')}`,
+                502
+            );
         }
 
-        const validTypes = new Set(['contact', 'contact_nc', 'coil']);
-        const isValidLadder = parsed.ladder.every(
-            (block) => validTypes.has(block.type) && typeof block.label === 'string'
-        );
+        // Use fixed response if available
+        const finalResponse = validation_result.fixedResponse || parsed;
 
-        if (!isValidLadder) {
-            return errorResponse('AI returned invalid ladder block types or missing labels.', 502);
+        // Log warnings if any
+        if (validation_result.warnings.length > 0) {
+            console.warn('⚠️ Response warnings:', validation_result.warnings);
         }
 
-        return successResponse(parsed);
+        // Add RAG status to response metadata
+        const responseWithMetadata = {
+            ...finalResponse,
+            _meta: {
+                ragStatus,
+                sourceDocuments: retrievedContext?.sourceDocuments ? Array.from(retrievedContext.sourceDocuments) : [],
+            },
+        };
+
+        return successResponse(responseWithMetadata);
 
     } catch (error) {
         console.error('❌ Unexpected error in /api/generate-logic:', error);

@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+.vector-cache/
 
 # debug
 npm-debug.log*

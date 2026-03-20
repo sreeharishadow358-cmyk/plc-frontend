@@ -2,6 +2,14 @@ import { LadderProject } from "@/types/ladder";
 import { parseLadderFromAI } from "@/services/ladderParser";
 
 /**
+ * Metadata about the generation process
+ */
+interface GenerationMetadata {
+  ragStatus: "disabled" | "active" | "not_initialized" | "no_results" | "error";
+  sourceDocuments: string[];
+}
+
+/**
  * Response structure from the AI ladder generation API endpoint.
  */
 interface AIServiceResponse {
@@ -13,6 +21,9 @@ interface AIServiceResponse {
 
   /** List of instructions used to generate the ladder */
   instructionList: string;
+
+  /** Metadata about the generation process (RAG status, sources etc.) */
+  metadata?: GenerationMetadata;
 }
 
 /**
@@ -129,11 +140,26 @@ export async function generateLadderLogic(instruction: string): Promise<AIServic
       );
     }
 
-    // Step 8: Return validated response
+    // Step 8: Extract metadata if available
+    const meta = data._meta as Record<string, unknown> | undefined;
+    const validRagStatuses = ["disabled", "active", "not_initialized", "no_results", "error"] as const;
+    let ragStatus: "disabled" | "active" | "not_initialized" | "no_results" | "error" = "disabled";
+    
+    if (meta?.ragStatus && validRagStatuses.includes(meta.ragStatus as any)) {
+      ragStatus = meta.ragStatus as any;
+    }
+    
+    const metadata: GenerationMetadata = {
+      ragStatus,
+      sourceDocuments: (meta?.sourceDocuments as string[]) || [],
+    };
+
+    // Step 9: Return validated response
     return {
       project: parsedProject,
       explanation: data.explanation.trim(),
       instructionList: data.instructionList.trim(),
+      metadata,
     };
   } catch (error) {
     // Step 9: Handle network and other errors
