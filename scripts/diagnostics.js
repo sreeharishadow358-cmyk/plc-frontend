@@ -1,14 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * RAG System Diagnostic Script
- * 
- * Verifies that the RAG system is properly configured and functional.
- * 
- * Usage: npm run rag:diag
- * Or:    node scripts/diagnostics.js
- */
-
 import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,210 +8,200 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.join(__dirname, '..');
 
-console.log(`
-╔════════════════════════════════════════════════════════════════════════════╗
-║                   RAG SYSTEM DIAGNOSTIC TOOL                               ║
-║                 Checking system configuration and status                   ║
-╚════════════════════════════════════════════════════════════════════════════╝
-`);
-
 let passCount = 0;
 let failCount = 0;
 let warnCount = 0;
 
-function pass(msg) {
-  console.log(`  ✅ ${msg}`);
+function section(title) {
+  console.log(`\n== ${title} ==\n`);
+}
+
+function pass(message) {
+  console.log(`[pass] ${message}`);
   passCount++;
 }
 
-function fail(msg) {
-  console.log(`  ❌ ${msg}`);
+function fail(message) {
+  console.log(`[fail] ${message}`);
   failCount++;
 }
 
-function warn(msg) {
-  console.log(`  ⚠️  ${msg}`);
+function warn(message) {
+  console.log(`[warn] ${message}`);
   warnCount++;
 }
 
+function parseEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return {};
+  }
+
+  const env = {};
+  const fileContents = fs.readFileSync(filePath, 'utf8');
+
+  for (const line of fileContents.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue;
+    }
+
+    const separatorIndex = trimmed.indexOf('=');
+    if (separatorIndex === -1) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, '');
+    env[key] = value;
+  }
+
+  return env;
+}
+
+function getMergedEnv() {
+  return {
+    ...parseEnvFile(path.join(projectRoot, '.env')),
+    ...parseEnvFile(path.join(projectRoot, '.env.local')),
+    ...process.env,
+  };
+}
+
 async function runDiagnostics() {
-  console.log('\n📋 CHECKING CONFIGURATION...\n');
+  const env = getMergedEnv();
+  const { getVectorDatabaseStats } = await import('../ai/src/services/embeddingService.ts');
 
-  // Check 1: Node version
-  const nodeVersion = process.version;
-  if (parseFloat(nodeVersion.slice(1)) >= 16) {
-    pass(`Node.js version: ${nodeVersion}`);
+  section('Workspace');
+
+  const nodeVersion = Number.parseInt(process.versions.node.split('.')[0] || '0', 10);
+  if (nodeVersion >= 18) {
+    pass(`Node.js ${process.version}`);
   } else {
-    fail(`Node.js version: ${nodeVersion} (requires 16+)`);
+    fail(`Node.js ${process.version} is too old; Node 18+ is recommended`);
   }
 
-  // Check 2: Environment variables
-  const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey && !groqKey.includes('your_')) {
-    pass(`GROQ_API_KEY configured`);
+  if (fs.existsSync(path.join(projectRoot, 'node_modules'))) {
+    pass('node_modules directory exists');
   } else {
-    fail(`GROQ_API_KEY not configured (see .env.example)`);
+    fail('node_modules directory is missing');
   }
 
-  // Check 3: Dependencies installed
-  const packageJsonPath = path.join(projectRoot, 'package.json');
-  if (fs.existsSync(packageJsonPath)) {
-    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-    const requiredDeps = ['pdf-parse', '@xenova/transformers', 'js-tiktoken'];
-    
-    let allDepsPresent = true;
-    for (const dep of requiredDeps) {
-      if (!pkg.dependencies[dep]) {
-        fail(`Missing dependency: ${dep}`);
-        allDepsPresent = false;
-      }
-    }
-    if (allDepsPresent) {
-      pass(`All RAG dependencies installed`);
+  const workspacePackages = ['package.json', 'ui/package.json', 'backend/package.json', 'ai/package.json'];
+  for (const relativePath of workspacePackages) {
+    if (fs.existsSync(path.join(projectRoot, relativePath))) {
+      pass(`${relativePath} found`);
+    } else {
+      fail(`${relativePath} is missing`);
     }
   }
 
-  // Check 4: node_modules exist
-  const nodeModulesPath = path.join(projectRoot, 'node_modules');
-  if (fs.existsSync(nodeModulesPath)) {
-    pass(`node_modules directory exists`);
+  section('Environment');
+
+  if (env.GROQ_API_KEY && !String(env.GROQ_API_KEY).includes('your_')) {
+    pass('GROQ_API_KEY is configured');
   } else {
-    fail(`node_modules not found - run: npm install`);
+    fail('GROQ_API_KEY is missing or still using the example value');
   }
 
-  // Check 5: Dataset folder
-  console.log('\n📋 CHECKING PDF DATASET...\n');
-  
+  if (env.NEXT_PUBLIC_API_BASE_URL) {
+    pass(`NEXT_PUBLIC_API_BASE_URL=${env.NEXT_PUBLIC_API_BASE_URL}`);
+  } else {
+    warn('NEXT_PUBLIC_API_BASE_URL is not set; the UI will use http://localhost:4000');
+  }
+
+  if (env.FRONTEND_ORIGIN) {
+    pass(`FRONTEND_ORIGIN=${env.FRONTEND_ORIGIN}`);
+  } else {
+    warn('FRONTEND_ORIGIN is not set; the backend will allow http://localhost:3000 by default');
+  }
+
+  section('Dataset');
+
   const datasetPath = path.join(projectRoot, 'dataset');
-  if (fs.existsSync(datasetPath)) {
-    pass(`dataset/ directory found`);
-    
-    const files = fs.readdirSync(datasetPath);
-    const pdfFiles = files.filter(f => f.toLowerCase().endsWith('.pdf'));
-    
+  if (!fs.existsSync(datasetPath)) {
+    fail('dataset directory is missing');
+  } else {
+    pass('dataset directory found');
+    const pdfFiles = fs.readdirSync(datasetPath).filter((file) => file.toLowerCase().endsWith('.pdf'));
     if (pdfFiles.length > 0) {
-      pass(`Found ${pdfFiles.length} PDF file(s):`);
-      pdfFiles.forEach(f => console.log(`      • ${f}`));
+      pass(`found ${pdfFiles.length} PDF file(s)`);
+      pdfFiles.forEach((file) => console.log(`       - ${file}`));
     } else {
-      warn(`No PDF files found in dataset/`);
+      warn('no PDF files found in dataset');
     }
-  } else {
-    fail(`dataset/ directory not found`);
   }
 
-  // Check 6: Vector database
-  console.log('\n📋 CHECKING VECTOR DATABASE...\n');
-  
-  const vectorCachePath = path.join(projectRoot, '.vector-cache');
-  if (fs.existsSync(vectorCachePath)) {
-    pass(`Vector database found at: .vector-cache/`);
-    
-    const embeddingsPath = path.join(vectorCachePath, 'embeddings.json');
-    if (fs.existsSync(embeddingsPath)) {
-      try {
-        const embeddings = JSON.parse(fs.readFileSync(embeddingsPath, 'utf-8'));
-        const count = embeddings.length;
-        pass(`Database contains ${count} embeddings`);
-        
-        if (count === 0) {
-          warn(`Vector database is empty - run: npm run rag:init`);
-        }
-      } catch (e) {
-        fail(`unable to parse embeddings.json: ${e.message}`);
-      }
-    } else {
-      fail(`embeddings.json not found - run: npm run rag:init`);
-    }
-    
-    const metadataPath = path.join(vectorCachePath, 'metadata.json');
-    if (fs.existsSync(metadataPath)) {
-      try {
-        const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
-        pass(`Embedding dimension: ${metadata.embeddingDim}`);
-        pass(`Model: ${metadata.model}`);
-      } catch (e) {
-        warn(`unable to read metadata: ${e.message}`);
-      }
-    }
-  } else {
-    warn(`Vector database not found - RAG not initialized`);
-    warn(`To initialize, run: npm run rag:init`);
-  }
+  section('RAG Source Files');
 
-  // Check 7: Source files
-  console.log('\n📋 CHECKING SOURCE FILES...\n');
-  
   const requiredFiles = [
-    'src/services/pdfProcessor.ts',
-    'src/services/embeddingService.ts',
-    'src/services/ragService.ts',
-    'src/services/responseValidator.ts',
-    'src/app/api/generate-logic/route.ts',
+    'ai/src/services/pdfProcessor.ts',
+    'ai/src/services/embeddingService.ts',
+    'ai/src/services/ragService.ts',
+    'backend/src/routes/generateLogic.ts',
     'scripts/initializeRAG.js',
+    'scripts/testPipeline.js',
   ];
-  
-  for (const file of requiredFiles) {
-    const fullPath = path.join(projectRoot, file);
-    if (fs.existsSync(fullPath)) {
-      pass(`${file}`);
+
+  for (const relativePath of requiredFiles) {
+    if (fs.existsSync(path.join(projectRoot, relativePath))) {
+      pass(relativePath);
     } else {
-      fail(`${file} - MISSING`);
+      fail(`${relativePath} is missing`);
     }
   }
 
-  // Check 8: Documentation
-  console.log('\n📋 CHECKING DOCUMENTATION...\n');
-  
-  const docs = [
-    'RAG_SETUP.md',
-    'RAG_QUICKSTART.md',
-  ];
-  
-  for (const doc of docs) {
-    const fullPath = path.join(projectRoot, doc);
-    if (fs.existsSync(fullPath)) {
-      pass(`${doc}`);
-    } else {
-      warn(`${doc} - not found (optional)`);
-    }
-  }
+  section('Vector Database');
 
-  // Summary
-  console.log(`
-╔════════════════════════════════════════════════════════════════════════════╗
-║                          DIAGNOSTIC SUMMARY                               ║
-╚════════════════════════════════════════════════════════════════════════════╝
-
-  ✅ Passed: ${passCount}
-  ❌ Failed: ${failCount}
-  ⚠️  Warnings: ${warnCount}
-`);
-
-  if (failCount === 0 && warnCount === 0) {
-    console.log('  🚀 RAG System is fully configured and ready!\n');
-    console.log('  Next steps:');
-    console.log('    1. Initialize: npm run rag:init');
-    console.log('    2. Start:      npm run dev');
-    console.log('    3. Test:       Try generating ladder logic\n');
-  } else if (failCount === 0) {
-    console.log('  ℹ️  System is mostly ready, but see warnings above.\n');
-    console.log('  Recommendations:');
-    if (!fs.existsSync(path.join(projectRoot, '.vector-cache'))) {
-      console.log('    • Initialize vector DB: npm run rag:init');
-    }
-    console.log('    • Check warnings above\n');
+  const stats = getVectorDatabaseStats();
+  if (stats.exists) {
+    pass(`vector database found at ${path.relative(projectRoot, stats.path)}`);
+    pass(`embedding count: ${stats.count}`);
   } else {
-    console.log('  ❌ System has issues. Fix failures above before proceeding.\n');
-    console.log('  Common fixes:');
-    console.log('    • Install dependencies: npm install');
-    console.log('    • Set GROQ_API_KEY in .env.local');
-    console.log('    • Create dataset/ folder with PDFs\n');
+    warn(`vector database not initialized at ${path.relative(projectRoot, stats.path)}`);
+  }
+
+  const metadataPath = path.join(stats.path, 'metadata.json');
+  if (fs.existsSync(metadataPath)) {
+    try {
+      const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+      if (metadata.model) {
+        pass(`embedding model: ${metadata.model}`);
+      }
+      if (metadata.embeddingDim || metadata.embeddingDimension) {
+        pass(`embedding dimension: ${metadata.embeddingDim || metadata.embeddingDimension}`);
+      }
+    } catch (error) {
+      warn(`unable to parse vector metadata: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  } else {
+    warn('metadata.json is missing from the vector database');
+  }
+
+  section('Documentation');
+
+  const docs = ['RAG_SETUP.md', 'RAG_QUICKSTART.md'];
+  for (const relativePath of docs) {
+    if (fs.existsSync(path.join(projectRoot, relativePath))) {
+      pass(`${relativePath} found`);
+    } else {
+      warn(`${relativePath} not found`);
+    }
+  }
+
+  section('Summary');
+  console.log(`Passed:   ${passCount}`);
+  console.log(`Failed:   ${failCount}`);
+  console.log(`Warnings: ${warnCount}`);
+
+  if (failCount === 0) {
+    console.log('\nSystem check completed without blocking failures.');
+  } else {
+    console.log('\nSystem check found blocking issues that should be fixed first.');
   }
 
   process.exit(failCount > 0 ? 1 : 0);
 }
 
-runDiagnostics().catch(error => {
-  console.error('Diagnostic error:', error);
+runDiagnostics().catch((error) => {
+  console.error(`Diagnostic error: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 });

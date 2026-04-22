@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+:root {
+  /* ── Design tokens from Figma ─────────────────────────────── */
+  --bg-base: #050d1a;
+  --bg-panel: #0f172a;
+  --bg-card: #1e293b;
+  --bg-editor: #162032;
+  --border: #1e3a5f;
+
+  --cyan: #06b6d4;
+  --green: #10b981;
+  --purple: #a855f7;
+  --blue-glow: #0ea5e9;
+
+  --text-primary: #f0f9ff;
+  --text-secondary: #94a3b8;
+  --text-muted: #475569;
+
+  /* ── Font families (vars injected by next/font) ───────────── */
+  --font-brand: "Segoe UI", "Trebuchet MS", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-mono: "Consolas", "Cascadia Mono", "Fira Code", monospace;
+
+  /* ── Legacy aliases (kept so existing component vars resolve) */
+  --background: var(--bg-panel);
+  --foreground: var(--text-primary);
+  --panel-bg: var(--bg-card);
+  --border-color: var(--border);
+  --accent-cyan: var(--cyan);
+}
+
+:root[data-theme='light'] {
+  --bg-base: #eef2f6;
+  --bg-panel: #ffffff;
+  --bg-card: #f8fafc;
+  --bg-editor: #f1f5f9;
+  --border: #cbd5e1;
+
+  --cyan: #0284c7;
+  --green: #059669;
+  --purple: #7e22ce;
+  --blue-glow: #0ea5e9;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Cursor blink (Output Console) ───────────────────────────── */
+@keyframes blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
+}
+
+.cursor-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* ── Thin scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-panel);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ── Textarea reset ───────────────────────────────────────────── */
+textarea {
+  font-family: var(--font-mono);
+  caret-color: var(--cyan);
+  outline: none;
+  resize: none;
+}
+
+textarea::placeholder {
+  color: transparent;
+}
+
+/* ── Remove Ant Design's default button focus ring ──────────── */
+button:focus-visible {
+  outline: 1px solid var(--border);
+  outline-offset: 2px;
+}

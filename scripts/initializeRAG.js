@@ -21,8 +21,8 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 
 // Import RAG modules
-import { processPDFs } from '../src/services/pdfProcessor.js';
-import { generateEmbedding, saveVectorDatabase, clearVectorDatabase, getVectorDatabaseStats } from '../src/services/embeddingService.js';
+import { processPDFs } from '../ai/src/services/pdfProcessor.ts';
+import { generateEmbedding, saveVectorDatabase, clearVectorDatabase, getVectorDatabaseStats } from '../ai/src/services/embeddingService.ts';
 
 // Get current directory
 const __filename = fileURLToPath(import.meta.url);

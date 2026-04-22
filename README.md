@@ -291,6 +291,13 @@ The API route:
 
 This project has been **fully consolidated** into a single, clean architecture (March 2026):
 
+## 🛠️ Patch Update (April 1, 2026)
+
+- Fixed a build error in `src/components/ladder/LadderPreview.tsx`: removed duplicate `contacts` and `coil` declarations in `LadderRung()`.
+- Fixed a build error in `src/utils/exportUtils.ts`: removed duplicate `now` and `rungs` declarations in `buildPLCopenXML()`.
+- Verifies successful compilation and full feature flow for ladder generation, rendering, and export.
+
+
 **What was merged:**
 - ✅ Moved all PLC type definitions to `src/types/ladder.ts`
 - ✅ Consolidated AI services into `src/services/aiService.ts`
@@ -592,19 +599,173 @@ npm run build
 npm run dev
 ```
 
-## 📝 File Overview for Developers
+## 📝 Comprehensive File Reference
 
-| File | LOC | Purpose | Key Exports |
-|------|-----|---------|------------|
-| [src/types/ladder.ts](src/types/ladder.ts) | ~60 | Core type definitions | `LadderBlock`, `LadderRung`, `LadderProject`, `Tag` |
-| [src/services/aiService.ts](src/services/aiService.ts) | ~150 | AI integration & error handling | `generateLadderLogic()` function |
-| [src/services/ladderParser.ts](src/services/ladderParser.ts) | ~180 | Type validation & parsing | `parseLadderFromAI()` function |
-| [route.ts](src/app/api/generate-logic/route.ts) | ~150 | AI API handler | POST handler with Groq integration |
-| [plcStore.ts](src/store/plcStore.ts) | ~50 | Global state + re-exports | `usePlcStore()` hook, type exports |
-| [useGenerateLogic.ts](src/hooks/useGenerateLogic.ts) | ~40 | React Query mutation | `useGenerateLogic()` hook |
-| [plcApi.ts](src/services/plcApi.ts) | ~30 | HTTP client | `generateLogic()` function |
-| [apiMiddleware.ts](src/lib/apiMiddleware.ts) | ~60 | Rate limiting & validation | `checkRateLimit()`, `validateApiRequest()` |
-| [exportUtils.ts](src/utils/exportUtils.ts) | ~100 | Export formatters | XML/CSV builders |
+### 🔧 Root Configuration Files
+
+| File | Purpose | Key Details |
+|------|---------|------------|
+| [package.json](package.json) | NPM dependencies & scripts | React, Next.js, Ant Design, TanStack Query, Transformers, PDF.js |
+| [next.config.ts](next.config.ts) | Next.js configuration | Build output: `.next-build` |
+| [tsconfig.json](tsconfig.json) | TypeScript configuration | Path aliases (`@/*`), strict mode, ES2017 target |
+| [eslint.config.mjs](eslint.config.mjs) | ESLint rules | Next.js, Web Vitals, TypeScript support |
+| [postcss.config.mjs](postcss.config.mjs) | PostCSS configuration | Tailwind CSS processing |
+| [ladder_logic_schema.json](ladder_logic_schema.json) | Ladder logic JSON schema | Validation structure for AI responses |
+| [next-env.d.ts](next-env.d.ts) | Auto-generated types | Next.js type declarations |
+| [RAG_SETUP.md](RAG_SETUP.md) | RAG initialization guide | Vector database setup instructions |
+| [RAG_QUICKSTART.md](RAG_QUICKSTART.md) | RAG quick reference | Fast-track RAG implementation |
+| [RAG_USAGE_GUIDE.md](RAG_USAGE_GUIDE.md) | RAG usage documentation | How to use RAG features |
+| [RAG_IMPLEMENTATION_SUMMARY.md](RAG_IMPLEMENTATION_SUMMARY.md) | RAG implementation details | Technical architecture of RAG system |
+| [code-documentation.txt](code-documentation.txt) | Developer notes | Implementation details & decisions |
+
+### 📁 src/app/ - Next.js App Router & Pages
+
+| File | Purpose | Exports/Handlers |
+|------|---------|------------------|
+| [layout.tsx](src/app/layout.tsx) | Root layout component | Wraps app with AntD Registry, providers, global CSS |
+| [page.tsx](src/app/page.tsx) | Home page | Renders `IDELayout` component |
+| [providers.tsx](src/app/providers.tsx) | Client-side providers | TanStack Query, AntD theme, Zustand store initialization |
+| [globals.css](src/app/globals.css) | Global styles | CSS variables, theme colors, base styles |
+| [favicon.ico](src/app/favicon.ico) | Browser tab icon | App branding |
+| [api/generate-logic/route.ts](src/app/api/generate-logic/route.ts) | AI logic generation API | POST handler, orchestrates: intent parse → logic build → validation → compilation |
+| [api/parse-intent/route.ts](src/app/api/parse-intent/route.ts) | Intent parsing API | POST handler, converts natural language → structured Intent JSON |
+| [studio/](src/app/studio/) | Studio directory | Placeholder for future IDE enhancements |
+
+### 🎨 src/components/ - React UI Components
+
+| Component | Purpose | Key Responsibilities |
+|-----------|---------|---------------------|
+| [console/OutputConsole.tsx](src/components/console/OutputConsole.tsx) | System console panel | Displays instruction list, export buttons (XML/CSV), reset controls |
+| [editor/InstructionEditor.tsx](src/components/editor/InstructionEditor.tsx) | Main text editor | User input area (0-500 chars), template buttons, generation trigger |
+| [editor/IntentEditor.tsx](src/components/editor/IntentEditor.tsx) | Intent form editor | Motor control fields: start input, stop input, emergency stop, output selection |
+| [explanation/ExplanationPanel.tsx](src/components/explanation/ExplanationPanel.tsx) | Explanation display | Shows AI-generated logic breakdown, instruction meanings |
+| [ladder/LadderPreview.tsx](src/components/ladder/LadderPreview.tsx) | Ladder diagram viewer | SVG rendering of ladder rungs, blocks, and connections |
+
+### 🪝 src/hooks/ - React Custom Hooks
+
+| Hook | Purpose | Returns |
+|------|---------|---------|
+| [useGenerateLogic.ts](src/hooks/useGenerateLogic.ts) | Logic generation mutation | TanStack Query mutation with API call, loading/error states, store updates |
+
+### 📐 src/layout/ - Layout Components
+
+| File | Purpose | Key Features |
+|------|---------|------------|
+| [IDELayout.tsx](src/layout/IDELayout.tsx) | Main IDE layout | 4-panel layout: editor, preview, explanation, console; theme toggle; logo |
+
+### 🔧 src/lib/ - Utilities & Middleware
+
+| File | Purpose | Key Exports |
+|------|---------|------------|
+| [apiMiddleware.ts](src/lib/apiMiddleware.ts) | API security middleware | Rate limiting, request validation, error/success formatting, IP tracking |
+| [exportLadder.ts](src/lib/exportLadder.ts) | Export format converters | PLCopen XML builder, GX Works CSV builder, file download handler |
+
+### 🤖 src/services/ - Business Logic & Integration
+
+| Service | Purpose | Key Functions |
+|---------|---------|---------------|
+| [aiService.ts](src/services/aiService.ts) | AI integration layer | `generateLadderLogic()` - wraps Groq API with validation & error handling |
+| [ragService.ts](src/services/ragService.ts) | RAG coordinator | Query embedding generation, PDF chunk retrieval from vector DB |
+| [embeddingService.ts](src/services/embeddingService.ts) | Vector embeddings | Transformers.js integration, in-memory model loading, LRU cache management |
+| [intentParser.ts](src/services/intentParser.ts) | Intent parsing | Calls `/api/parse-intent`, converts text → Intent objects |
+| [ladderCompiler.ts](src/services/ladderCompiler.ts) | Instruction compilation | Converts instruction strings (LD/ANI/OUT) → LadderRung/Block structures |
+| [ladderParser.ts](src/services/ladderParser.ts) | Response validation | Type-safe parsing, validates AI JSON → `LadderProject`, comprehensive error checking |
+| [logicBuilder.ts](src/services/logicBuilder.ts) | Rule-based logic engine | Intent → PLC instruction sequences (LD/ANI/OUT patterns) |
+| [safetyValidator.ts](src/services/safetyValidator.ts) | Safety checking | Detects: duplicate coils, unreachable blocks, missing emergency stops |
+| [responseValidator.ts](src/services/responseValidator.ts) | Response repair | Attempts malformed response fixes, validates addresses, block types |
+| [pdfProcessor.ts](src/services/pdfProcessor.ts) | PDF ingestion | Text extraction from `dataset/` PDFs, chunk splitting, overlap handling |
+| [plcApi.ts](src/services/plcApi.ts) | HTTP client | Axios wrapper for `/api/generate-logic`, 30s timeout |
+
+### 🏪 src/store/ - Zustand State Management
+
+| Store | Purpose | State Keys |
+|-------|---------|-----------|
+| [plcStore.ts](src/store/plcStore.ts) | Global app state | `input`, `intent`, `ladderData`, `explanation`, `instructionList`, `isLoading`, `error` |
+| [themeStore.ts](src/store/themeStore.ts) | Theme state | `isDark` (persisted in localStorage, updates DOM) |
+
+### 📦 src/types/ - TypeScript Type Definitions
+
+| File | Purpose | Key Types |
+|------|---------|----------|
+| [ladder.ts](src/types/ladder.ts) | Ladder logic types | `LadderBlock`, `LadderRung`, `LadderProject`, `Tag` (centralized source of truth) |
+| [intent.ts](src/types/intent.ts) | Intent structures | `MotorIntent` (start/stop/emergency/output), `SimpleSwitchIntent` |
+
+### 🛠️ src/utils/ - Helper Functions
+
+| Utility | Purpose | Key Exports |
+|---------|---------|------------|
+| [deviceOptions.ts](src/utils/deviceOptions.ts) | Device enumerations | Input options (X0-X10), output options (Y0-Y10) for dropdowns |
+| [exportUtils.ts](src/utils/exportUtils.ts) | Export formatters | `downloadFile()`, `buildPLCopenXML()`, `buildGXWorksCSV()` |
+
+### 📂 src/schema/ - Schema Definitions
+
+| Directory | Purpose | Status |
+|-----------|---------|--------|
+| [src/schema/](src/schema/) | JSON schema directory | Reserved for future schema definitions |
+
+### 🖼️ public/ - Static Assets
+
+| Asset | Type | Purpose |
+|-------|------|---------|
+| [next.svg](public/next.svg) | SVG | Next.js logo |
+| [vercel.svg](public/vercel.svg) | SVG | Vercel logo |
+| [file.svg](public/file.svg) | SVG | Document icon |
+| [globe.svg](public/globe.svg) | SVG | Network/web icon |
+| [window.svg](public/window.svg) | SVG | Window/app icon |
+
+### 🧪 scripts/ - Automation & Testing
+
+| Script | Purpose | Usage |
+|--------|---------|-------|
+| [initializeRAG.js](scripts/initializeRAG.js) | RAG initialization | Processes PDFs, generates embeddings, populates vector DB |
+| [initializeRAGMock.js](scripts/initializeRAGMock.js) | Mock RAG setup | Testing without actual PDF/embedding processing |
+| [clearRAG.js](scripts/clearRAG.js) | Cache cleanup | Clears vector DB and `.vector-cache/` |
+| [diagnostics.js](scripts/diagnostics.js) | System diagnostics | Checks RAG health, embeddings, vector DB status |
+| [testPipeline.js](scripts/testPipeline.js) | Pipeline testing | Tests: PDF → chunks → embeddings → retrieval |
+| [testPipeline2.js](scripts/testPipeline2.js) | Alternative pipeline test | Variant pipeline test setup |
+
+**Run commands:**
+```bash
+npm run rag:init       # Initialize RAG system
+npm run rag:clear      # Clear vector database
+npm run rag:diag       # Run diagnostics
+npm run rag:test       # Test pipeline
+```
+
+### 📊 File Statistics
+
+| Directory | File Count | Purpose |
+|-----------|-----------|---------|
+| `src/` | 35+ | Core application code |
+| `src/components/` | 5 | UI components (console, editor, explanation, ladder) |
+| `src/services/` | 12 | Business logic & AI integration |
+| `src/app/` | 8 | Pages & API routes |
+| `scripts/` | 6 | Automation & testing utilities |
+| `public/` | 5 | Static assets |
+
+### 🔄 Data Flow Through Files
+
+```
+User Input (InstructionEditor.tsx)
+    ↓
+useGenerateLogic.ts (TanStack Query mutation)
+    ↓
+plcApi.ts (Axios HTTP client)
+    ↓
+/api/generate-logic/route.ts (API endpoint)
+    ↓
+intentParser.ts → logicBuilder.ts → safetyValidator.ts → ladderCompiler.ts
+    ↓
+aiService.ts (Groq LLaMA API call)
+    ↓
+ladderParser.ts (Response validation)
+    ↓
+plcStore.ts (Zustand state update)
+    ↓
+Components (LadderPreview, ExplanationPanel, OutputConsole)
+    ↓
+User sees ladder diagram, explanation, exportable code
+```
 
 ## 📊 Project Metrics
 

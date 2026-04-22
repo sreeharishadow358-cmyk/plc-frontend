@@ -12,7 +12,7 @@
  * Usage: npm run rag:clear
  */
 
-import { clearVectorDatabase, getVectorDatabaseStats } from '../src/services/embeddingService.js';
+import { clearVectorDatabase, getVectorDatabaseStats } from '../ai/src/services/embeddingService.ts';
 
 console.log(`
 ╔════════════════════════════════════════════════════════════════════════════╗
